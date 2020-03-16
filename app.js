@@ -10,6 +10,7 @@ const allowCrossDomain = function(req, res, next) {
 }
 var usersRouter = require('./routes/users');
 var appsRouter = require('./routes/apps')
+var authRouter = require('./routes/auth')
 var app = express();
 
 app.use(allowCrossDomain)
@@ -20,4 +21,5 @@ app.use(cookieParser());
 
 app.use('/users', usersRouter);
 app.use('/apps', appsRouter);
+app.use('/auth', authRouter);
 module.exports = app;

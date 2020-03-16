@@ -15,7 +15,7 @@ state - random string
 code - authorization code generated on Auth provider
 state - the same state as in first GET
 
-3 Send POST from websrv req, http://localhost:3002/auth {grant_type: authorization_code, code, redirect_uri, client_id, client_secret}
+3 Send POST from websrv req, http://localhost:3002/auth/token {grant_type: authorization_code, code, redirect_uri, client_id, client_secret}
 
 grant_type - authorization code means that we use auth code flow
 code - received code from Auth provider
