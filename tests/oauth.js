@@ -16,8 +16,9 @@ chai.use(chaiHttp)
 var client_id
 let code
 var params = {
+    _id: '',
     response_type: 'code',
-    redirect_uri: 'http://localhost:3000',
+    redirect_uri: 'http://localhost:3000/callback',
     scope: "id_token access_token",
     state: uuid.v4()
 } 
@@ -30,18 +31,11 @@ describe("OAuth + OpenID", () => {
                 redirect_uri: 'http://localhost:3000/callback'
             }).then(res => {
                 expect(res).to.have.status(200)
-                expect(res.body).to.be.an("Array")
                 let patch = res.body[0]
-                expect(patch).to.have.property("op")
-                expect(patch).to.have.property("path")
-                expect(patch).to.have.property("value")
-                expect(patch.value).to.have.property("name")
                 expect(patch.value).to.have.property("client_id")
-                expect(patch.value).to.have.property("client_secret")
-                expect(patch.value).to.have.property("redirect_uri")
                 expect(patch.value.client_secret).to.equal("mysecret")
                 params.client_id = patch.value.client_id
-                console.log(`Client ID: ${patch.value.client_id}`)
+                params._id = patch.value._id
                 done()
             }).catch(e => {
                 throw e
@@ -60,30 +54,51 @@ describe("OAuth + OpenID", () => {
             })
         })
         it('Get code', (done) => { 
-            chai.request('http://localhost:3002').post('/auth/consent').send({consent: true, Name:'Cowboy', Surname :'Baby', password: '', ...params}).then(res => {
-                expect(res).to.have.status(301)
-                expect(res.query.code).to.be.a("string")
-                expect(res.query.state).to.be.equal(params.state)
-                code = req.query.code
+            let credentials = Buffer.from(`Cowboy:octopus`).toString('base64')
+            let reqstr = Object.entries(params).reduce((acc, item, index) => {
+                acc += index === 0 ? `${item[0]}=${item[1]}` : `&${item[0]}=${item[1]}`
+                return acc
+            }, "/auth?")
+            chai.request('http://localhost:3002').get(reqstr).set('Authorization', `Basic ${credentials}`).redirects(0).end((err,res) => {
+                expect(res).to.have.status(302)
+                console.log(res.headers)
+                expect(res.headers).to.have.property('location')
+                let query = res.headers['location'].split('?')[1].split('&').reduce((acc,s) => {
+                    let param = s.split('=')
+                    acc[param[0]] = param[1]
+                    return acc
+                }, {})  
+                expect(query).to.have.property('code')
+                expect(query.state).to.be.equal(params.state)
+                code = query.code
+                done()
+            })
+        })
+        it('Get token', done => { 
+            let tokenParams = {
+                grant_type: 'code',
+                code,
+                client_secret: 'mysecret',
+                client_id,
+                redirect_uri: 'http://localhost:3000/callback',
+                state: uuid.v4()
+            }
+            chai.request('http://localhost:3002').post('/auth/token').send(tokenParams).then(res => {
+                expect(res).to.have.status(200)    
+                expect(res.body).to.have.property('access_token')
+                expect(res.body).to.have.property('id_token')
                 done()
             }).catch(e => {
                 throw e
                 done()
             })
         })
-        it('Get token', (done) => { 
-            let tokenParams = {
-                grant_type: 'code',
-                code,
-                client_secret: 'mysecret',
-                client_id,
-                redirect_uri: 'http://localhost:3000',
-                state: uuid.v4()
-            }
-            chai.request('http://localhost:3002').post('/auth/token').send(tokenParams).then(res => {
-                expect(res).to.have.status(301)
-                expect(res.body).to.have.param('access_token')
-                expect(res.body).to.have.param('id_token')
+        it('delete request', (done) => {
+            chai.request('http://localhost:3002').delete(`/apps/${params._id}`).send().then(res => {
+                expect(res).to.have.status(200)
+                let patch = res.body[0]
+                expect(patch.path).to.be.equal(`/${params._id}`)
+                expect(patch.op).to.equal("remove")
                 done()
             }).catch(e => {
                 throw e

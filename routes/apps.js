@@ -23,5 +23,14 @@ router.get('/:_id', async (req, res, next) => {
         throw e
     }
 });
+router.delete('/:_id', async (req, res, next) => {
+    try {
+        const result = await mongo.removeOne({_id: req.params._id}, 'apps')
+        res.send(result)
+    } catch(e) {
+        res.status(500).send(e.message)
+        throw e
+    }
+});
 
 module.exports = router;

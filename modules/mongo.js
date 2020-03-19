@@ -2,7 +2,9 @@
 const MongoClient = require('mongodb').MongoClient;
 const ObjectId = require('mongodb').ObjectID;
 const assert = require('assert');
-const uri = `mongodb+srv://ordinary:D1fOmvXwRBG8MRw9@cluster0-gaj0e.mongodb.net/test?retryWrites=true&w=majority`;
+let username = 'kpop'
+let password = 'y99CfSCFTvqJJ2lq'
+const uri = `mongodb+srv://${username}:${password}@cluster0-nrgaw.mongodb.net/test?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true });
 var streamOpsMAp = {
     insert: 'add',
@@ -49,6 +51,7 @@ const connectDB = async () => {
        }
     }
 }
+connectDB()
 const initStream = async (io) => {
     try {
         await connectDB()
@@ -127,13 +130,14 @@ const addMany = async(entitys, col_name) => {
     }
 }
 
-const updateOne = async(query, update, col_name) => {
+const updateOne = async(query, update, col_name, type = true) => {
     try {
         await connectDB()
         if(query._id) {
             query._id = new ObjectId(query._id)
         }
-        const result = await db.collection(col_name).updateOne(query, {$set: update}, {
+        const modify = type ? {$set: update} : {$unset: update}
+        const result = await db.collection(col_name).updateOne(query, modify, {
             upsert: false
         }) // findOneAndUpdate({id: user._d},user)
         assert.equal(result.matchedCount, 1)
@@ -170,7 +174,7 @@ const removeOne = async (query, col_name) => {
         const result = await db.collection(col_name).deleteOne(query) 
         console.log(JSON.stringify(result)) 
         assert.equal(result.deletedCount, 1)
-        return constructPatch('remove', {query})        
+        return constructPatch('remove', [query])        
     } catch (e) {
         throw new Error("Delete operation is not successfull")
     }
